@@ -22,12 +22,12 @@ jobs:
           echo "NDK_HOME=$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_ENV
           echo "$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_PATH
 
-      - name: Move source files to root (fix NDK project path)
+      - name: Prepare NDK project (create jni folder)
         run: |
-          # Копируем файлы из папки src в корень (если они там)
-          cp -r src/* ./
-          # Проверяем, что Android.mk появился
-          ls -la Android.mk || echo "Android.mk not found!"
+          mkdir -p jni
+          cp -r src/* jni/
+          # Проверяем, что Android.mk теперь в jni/
+          ls -la jni/Android.mk || { echo "Android.mk not found in jni!"; exit 1; }
 
       - name: Build with ndk-build
         run: |
