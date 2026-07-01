@@ -22,16 +22,9 @@ jobs:
           echo "NDK_HOME=$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_ENV
           echo "$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_PATH
 
-      - name: Prepare NDK project (create jni folder)
+      - name: Build with ndk-build (project in current directory)
         run: |
-          mkdir -p jni
-          cp -r src/* jni/
-          # Проверяем, что Android.mk теперь в jni/
-          ls -la jni/Android.mk || { echo "Android.mk not found in jni!"; exit 1; }
-
-      - name: Build with ndk-build
-        run: |
-          ndk-build
+          ndk-build NDK_PROJECT_PATH=.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
