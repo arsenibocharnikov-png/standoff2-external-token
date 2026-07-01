@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #pragma once
 
 #include <cstdint>
@@ -41,7 +40,7 @@ public:
     static int open_proccess_memory(const pid_t pid)
     {
         char name[255] = {0};
-        sprintf(name, "/proc/%d/mem", pid);  // убрали лишний \0
+        sprintf(name, "/proc/%d/mem", pid);
         return open(name, O_RDWR);
     }
 
