@@ -10,8 +10,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Android NDK
         run: |
@@ -20,9 +22,9 @@ jobs:
           echo "NDK_HOME=$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_ENV
           echo "$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_PATH
 
-      - name: Build with ndk-build
+      - name: Build with ndk-build (src folder)
         run: |
-          cd $GITHUB_WORKSPACE
+          cd src
           ndk-build
 
       - name: Upload artifact
