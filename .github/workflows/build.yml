@@ -1,0 +1,32 @@
+name: Build with NDK
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:   # позволяет запускать вручную
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Android NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+          unzip -q android-ndk-r27c-linux.zip
+          echo "NDK_HOME=$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_ENV
+          echo "$GITHUB_WORKSPACE/android-ndk-r27c" >> $GITHUB_PATH
+
+      - name: Build with ndk-build
+        run: |
+          cd $GITHUB_WORKSPACE
+          ndk-build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: standoff2-token-binary
+          path: libs/**/*
