@@ -24,26 +24,32 @@ static std::string read_il2cpp_string(uint64_t str) {
 static std::string get_token(uint64_t base) {
     printf("[*] base: 0x%llx\n", (unsigned long long)base);
 
-    // script (2).json
     uint64_t typeinfoOffset = 151923536; // GGEHEAEABCHCAGB_TypeInfo
-
-    // В этой сборке Address для *_TypeInfo используем как RVA самого Il2CppClass
     uint64_t typeinfo = base + typeinfoOffset;
     printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
 
-    // 0.39.1 api.txt
-    uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0x148);
+    uint64_t staticfields = 0;
+    const uint64_t classFieldOffsets[] = {0xE8, 0xF0, 0x108, 0x118, 0x148, 0x150};
+
+    for (uint64_t off : classFieldOffsets) {
+        uint64_t candidate = memory_utils::read<uint64_t>(typeinfo + off);
+        printf("[*] typeinfo+0x%llx => 0x%llx\n",
+               (unsigned long long)off,
+               (unsigned long long)candidate);
+
+        if (candidate) {
+            staticfields = candidate;
+            break;
+        }
+    }
+
     printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
     if (!staticfields) return "";
 
-    // dump (2).cs:
-    // private static GGEHEAEABCHCAGB CFAAGAEAAEEGCEC; // 0x0
     uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
     printf("[*] authmanager: 0x%llx\n", (unsigned long long)authmanager);
     if (!authmanager) return "";
 
-    // dump (2).cs:
-    // EHFGBCHBFHEHFAH`1<HBBEACABFGGCAEG> ... // 0xB0
     uint64_t stateHolder = memory_utils::read<uint64_t>(authmanager + 0xB0);
     printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
     if (!stateHolder) return "";
