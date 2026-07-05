@@ -21,31 +21,26 @@ static std::string read_il2cpp_string(uint64_t str) {
     return out;
 }
 
-std::string get_token(uint64_t il2cpp) {
-    printf("[*] libil2cpp base: 0x%llx\n", (unsigned long long)il2cpp);
+std::string get_token(uint64_t base) {
+    printf("[*] base: 0x%llx\n", (unsigned long long)base);
 
-    // GGEHEAEABCHCAGB_TypeInfo from script.json
-    uint64_t typeinfoOffset = 178334344; // 0x0AA12408
-    uint64_t typeinfo = memory_utils::read<uint64_t>(il2cpp + typeinfoOffset);
+    uint64_t typeinfoOffset = 178334344; // GGEHEAEABCHCAGB_TypeInfo
+    uint64_t typeinfo = memory_utils::read<uint64_t>(base + typeinfoOffset);
     printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
     if (!typeinfo) return "";
 
-    // IL2CPP static_fields pointer
     uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0xE8);
     printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
     if (!staticfields) return "";
 
-    // First static field: singleton instance
     uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
     printf("[*] authmanager: 0x%llx\n", (unsigned long long)authmanager);
     if (!authmanager) return "";
 
-    // Candidate state holder from dump: +0xB0
     uint64_t stateHolder = memory_utils::read<uint64_t>(authmanager + 0xB0);
     printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
     if (!stateHolder) return "";
 
-    // Try direct interpretation first
     {
         uint64_t tokenPtr = memory_utils::read<uint64_t>(stateHolder + 0x28);
         uint32_t len = tokenPtr ? memory_utils::read<uint32_t>(tokenPtr + 0x10) : 0;
@@ -56,7 +51,6 @@ std::string get_token(uint64_t il2cpp) {
         }
     }
 
-    // If +0xB0 points to a wrapper/container, try common object field offsets
     const uint64_t unwrapOffsets[] = {0x10, 0x18, 0x20, 0x28, 0x30};
 
     for (uint64_t unwrap : unwrapOffsets) {
@@ -92,13 +86,7 @@ int main() {
 
     memory_utils::initialize(proc.get_pid());
 
-    uint64_t il2cpp = proc.get_libil2cpp_base();
-    if (!il2cpp) {
-        printf("[!] libil2cpp base not found\n");
-        return -1;
-    }
-
-    std::string token = get_token(il2cpp);
+    std::string token = get_token(proc.get_libunity_base());
     if (token.empty()) {
         printf("[!] token not found\n");
         return -1;
