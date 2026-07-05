@@ -24,15 +24,14 @@ static std::string read_il2cpp_string(uint64_t str) {
 static std::string get_token(uint64_t base) {
     printf("[*] base: 0x%llx\n", (unsigned long long)base);
 
-    // script (2).json:
-    // GGEHEAEABCHCAGB_TypeInfo = 151923536
-    uint64_t typeinfoOffset = 151923536;
-    uint64_t typeinfo = memory_utils::read<uint64_t>(base + typeinfoOffset);
-    printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
-    if (!typeinfo) return "";
+    // script (2).json
+    uint64_t typeinfoOffset = 151923536; // GGEHEAEABCHCAGB_TypeInfo
 
-    // 0.39.1 api.txt:
-    // Il2CppClass::static_fields = 0x148
+    // В этой сборке Address для *_TypeInfo используем как RVA самого Il2CppClass
+    uint64_t typeinfo = base + typeinfoOffset;
+    printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
+
+    // 0.39.1 api.txt
     uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0x148);
     printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
     if (!staticfields) return "";
@@ -49,7 +48,6 @@ static std::string get_token(uint64_t base) {
     printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
     if (!stateHolder) return "";
 
-    // Direct attempt: maybe stateHolder is already AuthenticatedPlayerApiState
     uint64_t tokenPtr = memory_utils::read<uint64_t>(stateHolder + 0x28);
     uint32_t len = tokenPtr ? memory_utils::read<uint32_t>(tokenPtr + 0x10) : 0;
     printf("[*] direct tokenPtr: 0x%llx len=%u\n", (unsigned long long)tokenPtr, len);
@@ -58,7 +56,6 @@ static std::string get_token(uint64_t base) {
         return read_il2cpp_string(tokenPtr);
     }
 
-    // If +0xB0 points to wrapper/container, unwrap common object field offsets
     const uint64_t unwrapOffsets[] = {0x10, 0x18, 0x20, 0x28, 0x30};
 
     for (uint64_t unwrap : unwrapOffsets) {
