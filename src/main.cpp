@@ -28,32 +28,22 @@ static std::string get_token(uint64_t base) {
     uint64_t typeinfo = base + typeinfoOffset;
     printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
 
-    uint64_t staticfields = 0;
-    const uint64_t classFieldOffsets[] = {0xE8, 0xF0, 0x108, 0x118, 0x148, 0x150};
-
-    for (uint64_t off : classFieldOffsets) {
-        uint64_t candidate = memory_utils::read<uint64_t>(typeinfo + off);
-        printf("[*] typeinfo+0x%llx => 0x%llx\n",
-               (unsigned long long)off,
-               (unsigned long long)candidate);
-
-        if (candidate) {
-            staticfields = candidate;
-            break;
-        }
-    }
-
+    // il2cpp.h -> Il2CppClass::static_fields = 0xB8
+    uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0xB8);
     printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
     if (!staticfields) return "";
 
+    // GGEHEAEABCHCAGB_StaticFields { GGEHEAEABCHCAGB_o* CFAAGAEAAEEGCEC; }
     uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
     printf("[*] authmanager: 0x%llx\n", (unsigned long long)authmanager);
     if (!authmanager) return "";
 
+    // dump (2).cs: PlayerApiState-like holder at 0xB0
     uint64_t stateHolder = memory_utils::read<uint64_t>(authmanager + 0xB0);
     printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
     if (!stateHolder) return "";
 
+    // direct try
     uint64_t tokenPtr = memory_utils::read<uint64_t>(stateHolder + 0x28);
     uint32_t len = tokenPtr ? memory_utils::read<uint32_t>(tokenPtr + 0x10) : 0;
     printf("[*] direct tokenPtr: 0x%llx len=%u\n", (unsigned long long)tokenPtr, len);
@@ -62,6 +52,7 @@ static std::string get_token(uint64_t base) {
         return read_il2cpp_string(tokenPtr);
     }
 
+    // unwrap wrapper/container if needed
     const uint64_t unwrapOffsets[] = {0x10, 0x18, 0x20, 0x28, 0x30};
 
     for (uint64_t unwrap : unwrapOffsets) {
