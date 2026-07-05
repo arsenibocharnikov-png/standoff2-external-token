@@ -5,7 +5,7 @@
 #include <cstring>
 
 process_manager::process_manager(const std::string& package_name)
-    : package_name_(package_name), pid_(-1), libunity_base_(0) {}
+    : package_name_(package_name), pid_(-1), libunity_base_(0), libil2cpp_base_(0) {}
 
 bool process_manager::initialize() {
     pid_ = find_process_id();
@@ -17,6 +17,9 @@ bool process_manager::initialize() {
     libunity_base_ = find_module_base("libunity.so", 1);
     printf("[*] libunity = 0x%llx\n", (unsigned long long)libunity_base_);
 
+    libil2cpp_base_ = find_module_base("libil2cpp.so", 1);
+    printf("[*] libil2cpp = 0x%llx\n", (unsigned long long)libil2cpp_base_);
+
     return true;
 }
 
@@ -26,6 +29,10 @@ int process_manager::get_pid() const {
 
 uint64_t process_manager::get_libunity_base() const {
     return libunity_base_;
+}
+
+uint64_t process_manager::get_libil2cpp_base() const {
+    return libil2cpp_base_;
 }
 
 int process_manager::find_process_id() {

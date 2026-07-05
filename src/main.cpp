@@ -24,20 +24,26 @@ static std::string read_il2cpp_string(uint64_t str) {
 static std::string get_token(uint64_t base) {
     printf("[*] base: 0x%llx\n", (unsigned long long)base);
 
+    // typeinfoOffset is the relative address of the Il2CppClass for the authentication manager.
+    // This value is specific to the game version and is usually found via il2cpp dump or pattern scanning.
     uint64_t typeinfoOffset = 151923536; // GGEHEAEABCHCAGB_TypeInfo
     uint64_t typeinfo = base + typeinfoOffset;
     printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
 
+    // In IL2CPP, Il2CppClass structure has a pointer to static fields at offset 0xB8 (for 64-bit).
     // il2cpp.h -> Il2CppClass::static_fields = 0xB8
     uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0xB8);
     printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
     if (!staticfields) return "";
 
+    // The first field (offset 0x0) of the static fields is expected to be the instance of the manager.
     // GGEHEAEABCHCAGB_StaticFields { GGEHEAEABCHCAGB_o* CFAAGAEAAEEGCEC; }
     uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
     printf("[*] authmanager: 0x%llx\n", (unsigned long long)authmanager);
     if (!authmanager) return "";
 
+    // Inside the manager instance, at offset 0xB0, there is a pointer to a state holder object
+    // (similar to PlayerApiState in typical Standoff 2 dumps).
     // dump (2).cs: PlayerApiState-like holder at 0xB0
     uint64_t stateHolder = memory_utils::read<uint64_t>(authmanager + 0xB0);
     printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
