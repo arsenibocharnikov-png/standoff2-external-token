@@ -1,3 +1,4 @@
+// process_manager.cpp
 #include "process_manager.h"
 #include <cstdio>
 #include <unistd.h>
@@ -18,7 +19,7 @@ bool process_manager::initialize() {
     libunity_base_ = find_module_base("libunity.so", 1);
     libil2cpp_base_ = find_module_base("libil2cpp.so", 1);
 
-    return libunity_base_ != 0 && libil2cpp_base_ != 0;
+    return libil2cpp_base_ != 0;
 }
 
 int process_manager::get_pid() const {
@@ -48,7 +49,7 @@ int process_manager::find_process_id() {
         FILE* fp = fopen(filename, "r");
         if (!fp) continue;
 
-        char cmdline[64];
+        char cmdline[256] = {0};
         fgets(cmdline, sizeof(cmdline), fp);
         fclose(fp);
 
@@ -57,6 +58,7 @@ int process_manager::find_process_id() {
             return id;
         }
     }
+
     closedir(dir);
     return -1;
 }
@@ -78,6 +80,7 @@ uint64_t process_manager::find_module_base(const char* module_name, int mod) {
             break;
         }
     }
+
     fclose(maps);
     return base;
 }
