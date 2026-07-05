@@ -24,23 +24,32 @@ static std::string read_il2cpp_string(uint64_t str) {
 static std::string get_token(uint64_t base) {
     printf("[*] base: 0x%llx\n", (unsigned long long)base);
 
-    uint64_t typeinfoOffset = 178334344; // GGEHEAEABCHCAGB_TypeInfo
+    // script (2).json:
+    // GGEHEAEABCHCAGB_TypeInfo = 151923536
+    uint64_t typeinfoOffset = 151923536;
     uint64_t typeinfo = memory_utils::read<uint64_t>(base + typeinfoOffset);
     printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
     if (!typeinfo) return "";
 
-    uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0xE8);
+    // 0.39.1 api.txt:
+    // Il2CppClass::static_fields = 0x148
+    uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0x148);
     printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
     if (!staticfields) return "";
 
+    // dump (2).cs:
+    // private static GGEHEAEABCHCAGB CFAAGAEAAEEGCEC; // 0x0
     uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
     printf("[*] authmanager: 0x%llx\n", (unsigned long long)authmanager);
     if (!authmanager) return "";
 
+    // dump (2).cs:
+    // EHFGBCHBFHEHFAH`1<HBBEACABFGGCAEG> ... // 0xB0
     uint64_t stateHolder = memory_utils::read<uint64_t>(authmanager + 0xB0);
     printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
     if (!stateHolder) return "";
 
+    // Direct attempt: maybe stateHolder is already AuthenticatedPlayerApiState
     uint64_t tokenPtr = memory_utils::read<uint64_t>(stateHolder + 0x28);
     uint32_t len = tokenPtr ? memory_utils::read<uint32_t>(tokenPtr + 0x10) : 0;
     printf("[*] direct tokenPtr: 0x%llx len=%u\n", (unsigned long long)tokenPtr, len);
@@ -49,6 +58,7 @@ static std::string get_token(uint64_t base) {
         return read_il2cpp_string(tokenPtr);
     }
 
+    // If +0xB0 points to wrapper/container, unwrap common object field offsets
     const uint64_t unwrapOffsets[] = {0x10, 0x18, 0x20, 0x28, 0x30};
 
     for (uint64_t unwrap : unwrapOffsets) {
