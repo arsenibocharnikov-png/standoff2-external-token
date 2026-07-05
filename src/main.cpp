@@ -4,46 +4,106 @@
 #include <cstdio>
 #include <string>
 
-std::string get_token(uint64_t il2cpp) {
-    uint64_t typeinfoOffset = 178334344; // GGEHEAEABCHCAGB_TypeInfo
-    uint64_t typeinfo = memory_utils::read<uint64_t>(il2cpp + typeinfoOffset);
-    if (!typeinfo) return "";
+static std::string read_il2cpp_string(uint64_t str) {
+    if (!str) return "";
 
-    uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0xE8);
-    if (!staticfields) return "";
-
-    uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
-    if (!authmanager) return "";
-
-    uint64_t state = memory_utils::read<uint64_t>(authmanager + 0xB0);
-    if (!state) return "";
-
-    uint64_t tokenPtr = memory_utils::read<uint64_t>(state + 0x28);
-    if (!tokenPtr) return "";
-
-    uint32_t len = memory_utils::read<uint32_t>(tokenPtr + 0x10);
+    uint32_t len = memory_utils::read<uint32_t>(str + 0x10);
     if (!len || len > 1024) return "";
 
-    std::string token;
-    token.reserve(len);
+    std::string out;
+    out.reserve(len);
 
     for (uint32_t i = 0; i < len; i++) {
-        uint16_t ch = memory_utils::read<uint16_t>(tokenPtr + 0x14 + i * 2);
-        token.push_back(ch <= 0x7F ? static_cast<char>(ch) : '?');
+        uint16_t ch = memory_utils::read<uint16_t>(str + 0x14 + i * 2);
+        out.push_back(ch <= 0x7F ? static_cast<char>(ch) : '?');
     }
 
-    return token;
+    return out;
+}
+
+std::string get_token(uint64_t il2cpp) {
+    printf("[*] libil2cpp base: 0x%llx\n", (unsigned long long)il2cpp);
+
+    // GGEHEAEABCHCAGB_TypeInfo from script.json
+    uint64_t typeinfoOffset = 178334344; // 0x0AA12408
+    uint64_t typeinfo = memory_utils::read<uint64_t>(il2cpp + typeinfoOffset);
+    printf("[*] typeinfo: 0x%llx\n", (unsigned long long)typeinfo);
+    if (!typeinfo) return "";
+
+    // IL2CPP static_fields pointer
+    uint64_t staticfields = memory_utils::read<uint64_t>(typeinfo + 0xE8);
+    printf("[*] staticfields: 0x%llx\n", (unsigned long long)staticfields);
+    if (!staticfields) return "";
+
+    // First static field: singleton instance
+    uint64_t authmanager = memory_utils::read<uint64_t>(staticfields + 0x0);
+    printf("[*] authmanager: 0x%llx\n", (unsigned long long)authmanager);
+    if (!authmanager) return "";
+
+    // Candidate state holder from dump: +0xB0
+    uint64_t stateHolder = memory_utils::read<uint64_t>(authmanager + 0xB0);
+    printf("[*] stateHolder: 0x%llx\n", (unsigned long long)stateHolder);
+    if (!stateHolder) return "";
+
+    // Try direct interpretation first
+    {
+        uint64_t tokenPtr = memory_utils::read<uint64_t>(stateHolder + 0x28);
+        uint32_t len = tokenPtr ? memory_utils::read<uint32_t>(tokenPtr + 0x10) : 0;
+        printf("[*] direct tokenPtr: 0x%llx len=%u\n", (unsigned long long)tokenPtr, len);
+
+        if (tokenPtr && len > 0 && len <= 1024) {
+            return read_il2cpp_string(tokenPtr);
+        }
+    }
+
+    // If +0xB0 points to a wrapper/container, try common object field offsets
+    const uint64_t unwrapOffsets[] = {0x10, 0x18, 0x20, 0x28, 0x30};
+
+    for (uint64_t unwrap : unwrapOffsets) {
+        uint64_t state = memory_utils::read<uint64_t>(stateHolder + unwrap);
+        printf("[*] stateHolder+0x%llx => 0x%llx\n",
+               (unsigned long long)unwrap,
+               (unsigned long long)state);
+
+        if (!state) continue;
+
+        uint64_t tokenPtr = memory_utils::read<uint64_t>(state + 0x28);
+        uint32_t len = tokenPtr ? memory_utils::read<uint32_t>(tokenPtr + 0x10) : 0;
+
+        printf("[*] state=0x%llx tokenPtr=0x%llx len=%u\n",
+               (unsigned long long)state,
+               (unsigned long long)tokenPtr,
+               len);
+
+        if (tokenPtr && len > 0 && len <= 1024) {
+            return read_il2cpp_string(tokenPtr);
+        }
+    }
+
+    return "";
 }
 
 int main() {
     process_manager proc("com.axlebolt.standoff2");
-    if (!proc.initialize()) return -1;
+    if (!proc.initialize()) {
+        printf("[!] process_manager::initialize() failed\n");
+        return -1;
+    }
 
     memory_utils::initialize(proc.get_pid());
 
-    std::string token = get_token(proc.get_libil2cpp_base());
-    if (token.empty()) return -1;
+    uint64_t il2cpp = proc.get_libil2cpp_base();
+    if (!il2cpp) {
+        printf("[!] libil2cpp base not found\n");
+        return -1;
+    }
 
-    printf("%s\n", token.c_str());
+    std::string token = get_token(il2cpp);
+    if (token.empty()) {
+        printf("[!] token not found\n");
+        return -1;
+    }
+
+    printf("[+] token: %s\n", token.c_str());
     return 0;
 }
